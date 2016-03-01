@@ -8,10 +8,12 @@ class Docker
     @check_env = check_env || CheckEnv.new(machine)
   end
 
-  def system(*command)
-    set_env do
-      Kernel.system("docker", *command)
-    end
+  def exec(*command)
+    system("docker",*command)
+  end
+
+  def compose(*command)
+    system("docker-compose",*command)
   end
 
   protected
@@ -24,5 +26,11 @@ class Docker
     yield
   ensure
     old_env.each { |k,v| ENV[k] = v }
+  end
+
+  def system(binary,*command)
+    set_env do
+      Kernel.system(binary, *command)
+    end
   end
 end

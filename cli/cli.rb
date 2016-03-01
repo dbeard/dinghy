@@ -7,6 +7,7 @@ $LOAD_PATH << File.dirname(__FILE__)
 
 require 'dinghy.rb'
 require 'dinghy/check_env'
+require 'dinghy/composer'
 require 'dinghy/docker'
 require 'dinghy/dnsmasq'
 require 'dinghy/fsevents_to_vm'
@@ -102,6 +103,12 @@ class DinghyCLI < Thor
     dns = Dnsmasq.new(machine)
     puts " DNS: #{dns.status}"
     puts "HTTP: #{HttpProxy.new(machine).status}"
+    if preferences[:startup_containers]
+      puts "\nStartup Containers:"
+      Composer.new(machine,preferences[:startup_containers]).statuses.each do |container,status|
+        puts " - #{container}: #{status}"
+      end
+    end
     return unless machine.status == 'running'
     [unfs, dns, fsevents].each do |daemon|
       if !daemon.running?
@@ -226,11 +233,13 @@ class DinghyCLI < Thor
     dns = Dnsmasq.new(machine)
     dns.up
     proxy = options[:proxy] || (options[:proxy].nil? && !proxy_disabled?)
-    if proxy
+    startup_containers = preferences[:startup_containers]
+    if proxy || startup_containers
       # this is hokey, but it can take a few seconds for docker daemon to be available
       # TODO: poll in a loop until the docker daemon responds
       sleep 5
-      HttpProxy.new(machine).up
+      HttpProxy.new(machine).up if proxy
+      Composer.new(machine,startup_containers).up if startup_containers
     end
 
     preferences.update(
